@@ -1,5 +1,7 @@
 # simplevis
-Simple utilities built on ROS2 for visualizing messages
+Simple utility built with ROS2 for visualizing messages and controlling the robot.\
+Note that this tool was built specifically for Turtlebots and likely won't work any any other device for certain use cases.
+<img src="Screenshot_20250104_193247.png" alt="Example use of simplevis" width="500"/>\
 ### Installation
 ```bash
 # cd into your ROS2 workspace's src directory
@@ -23,10 +25,8 @@ source install/setup.bash
 # Run a node in simplevis to test the installation
 ros2 run simplevis <node>
 ```
-### scanvis
-Visualizes output from the ```/scan``` topic\
-<img src="Screenshot_20250104_193247.png" alt="drawing" width="500"/>\
+### Running
 Run with
 ```
-ros2 run simplevis scanvis
+ros2 run simplevis turtlebot
 ```
