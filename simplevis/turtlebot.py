@@ -8,6 +8,7 @@ import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import LaserScan
 from nav_msgs.msg import Odometry
+from geometry_msgs.msg import Point
 
 CANVAS_WIDTH = 666
 CANVAS_HEIGHT = 666
@@ -18,7 +19,7 @@ ROBOT_SIZE = 0.26
 SCANNER_OFFSET = (0, 0.09)
 SCANNER_RADIUS = 0.08
 
-POINT_RADIUS = 5
+POINT_RADIUS = 8
 
 LOCK_ROTATION = False
 
@@ -26,6 +27,31 @@ LOCK_ROTATION = False
 points = []
 position = None
 rotation = 0
+
+
+path_points = []
+
+
+MODE_VIEW = 0
+MODE_PLACE_POINT = 1
+
+active_mode = MODE_VIEW
+
+
+mouse_pos = [0, 0]
+
+
+def mouse_move(event):
+    global mouse_pos
+    mouse_pos[0] = event.x
+    mouse_pos[1] = event.y
+
+
+def on_mouse_left_click(event):
+    global path_points
+    if(active_mode == MODE_PLACE_POINT):
+        # TODO
+        path_points.append(mouse_pos.copy())
 
 
 def rgb(r, g, b):
@@ -44,13 +70,42 @@ def rgb(r, g, b):
     return hex_
 
 
+def set_mode(mode, mode_label):
+    global active_mode
+    global path_points
+    active_mode = mode
+    if mode == MODE_VIEW:
+        mode_label.config(text="Mode: VIEW")
+        path_points.clear()
+    elif mode == MODE_PLACE_POINT:
+        mode_label.config(text="Mode: PLACE_POINT [press <V> to return to VIEW]")
+    else:
+        mode_label.config(text="Mode: ERR")
+
+
 def gui_main():
     global points
+    global path_points
+    global active_mode
     
     root = tk.Tk()
-    root.title("scanvis")
+    root.title("TurtlebotVis")
+
+
     
+    mode_label = tk.Label(root,
+                          text="Mode: VIEW",
+                          font=("Courier", 14),
+                          height=2)
+   
+    root.bind("<Motion>", mouse_move)
+    root.bind("<Button-1>", on_mouse_left_click)
+    root.bind("v", lambda _: set_mode(MODE_VIEW, mode_label))
+    root.bind("p", lambda _: set_mode(MODE_PLACE_POINT, mode_label))
+
     canvas = tk.Canvas(root, width=CANVAS_WIDTH, height=CANVAS_HEIGHT, bg="white")
+    
+    mode_label.pack()
     canvas.pack()
     
     offset_x = CANVAS_WIDTH // 2
@@ -88,13 +143,35 @@ def gui_main():
                 fill=rgb(252, 248, 0), outline=""
             )
 
+        if active_mode == MODE_PLACE_POINT:
+            canvas.create_oval(
+                mouse_pos[0] - POINT_RADIUS, mouse_pos[1] - POINT_RADIUS,
+                mouse_pos[0] + POINT_RADIUS, mouse_pos[1] + POINT_RADIUS,
+                fill="#fcb502", outline=""
+            )
+       
+        # Path points
+        
+        if len(path_points) > 0:
+            canvas.create_line(offset_x, offset_y, path_points[0][0], path_points[0][1], width=1, fill="#fcb502")
+        
+        for i, p in enumerate(path_points):
+            canvas.create_oval(
+                p[0] - POINT_RADIUS, p[1] - POINT_RADIUS,
+                p[0] + POINT_RADIUS, p[1] + POINT_RADIUS,
+                fill="#fcb502" if i < len(path_points) - 1 else "#0afc02", outline=""
+            )
+            if i < len(path_points) - 1:
+                canvas.create_line(p[0], p[1], path_points[i + 1][0], path_points[i + 1][1], width=1, fill="#fcb502")
+
+
         root.after(100, animation_loop)
     
     animation_loop()
     root.mainloop()
 
 
-class ScanVis(Node):
+class TurtlebotVis(Node):
     def __init__(self):
         super().__init__('scanvis')
         self.scan_sub = self.create_subscription(LaserScan, 'scan', self.scan_callback, 10)
@@ -128,7 +205,7 @@ def main(args=None):
 
     try:
         rclpy.init(args=args)
-        scanvis = ScanVis()
+        scanvis = TurtlebotVis()
         t.start()
         rclpy.spin(scanvis)
         scanvis.destroy_node()
